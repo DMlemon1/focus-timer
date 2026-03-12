@@ -1,0 +1,72 @@
+name: Build Mac DMG
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-mac:
+    runs-on: macos-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        pip install PyQt6 PyQt6-Qt6 pyinstaller
+
+    - name: Build app
+      run: |
+        pyinstaller --onefile --windowed \
+          --name "Focus Timer" \
+          --osx-bundle-identifier="com.focustimer.app" \
+          --target-arch arm64 \
+          focus_timer.py
+
+    - name: Create app bundle
+      run: |
+        mkdir -p "Focus Timer.app/Contents/MacOS"
+        mkdir -p "Focus Timer.app/Contents/Resources"
+        cp "dist/Focus Timer" "Focus Timer.app/Contents/MacOS/Focus Timer"
+        chmod +x "Focus Timer.app/Contents/MacOS/Focus Timer"
+
+        cat > "Focus Timer.app/Contents/Info.plist" << 'EOF'
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+            <key>CFBundleExecutable</key>
+            <string>Focus Timer</string>
+            <key>CFBundleIdentifier</key>
+            <string>com.focustimer.app</string>
+            <key>CFBundleName</key>
+            <string>Focus Timer</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+            <key>CFBundleShortVersionString</key>
+            <string>1.0</string>
+            <key>CFBundleVersion</key>
+            <string>1</string>
+            <key>LSMinimumSystemVersion</key>
+            <string>11.0</string>
+            <key>NSHighResolutionCapable</key>
+            <true/>
+        </dict>
+        </plist>
+        EOF
+
+    - name: Create DMG
+      run: |
+        hdiutil create -volname "Focus Timer" -srcfolder "Focus Timer.app" -ov -format UDZO "Focus Timer-M4.dmg"
+
+    - name: Upload DMG
+      uses: actions/upload-artifact@v4
+      with:
+        name: Focus-Timer-M4
+        path: Focus Timer-M4.dmg
