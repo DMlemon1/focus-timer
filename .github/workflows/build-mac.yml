@@ -19,12 +19,38 @@ jobs:
 
     - name: Install dependencies
       run: |
-        pip install PyQt6 PyQt6-Qt6 pyinstaller
+        pip install PyQt6 PyQt6-Qt6 pyinstaller pillow
+
+    - name: Create ICNS icon
+      run: |
+        python3 << 'EOF'
+        from PIL import Image
+        import os
+
+        # 创建 icns 所需的图标集目录
+        os.makedirs('icon.iconset', exist_ok=True)
+
+        img = Image.open('icon.png')
+        sizes = [16, 32, 64, 128, 256, 512]
+
+        for size in sizes:
+            resized = img.resize((size, size), Image.Resampling.LANCZOS)
+            resized.save(f'icon.iconset/icon_{size}x{size}.png')
+            if size * 2 <= 1024:
+                resized2x = img.resize((size*2, size*2), Image.Resampling.LANCZOS)
+                resized2x.save(f'icon.iconset/icon_{size}x{size}@2x.png')
+
+        print('Icon set created')
+        EOF
+
+        # 使用系统工具创建 icns
+        iconutil -c icns icon.iconset -o icon.icns
 
     - name: Build app
       run: |
         pyinstaller --onefile --windowed \
           --name "Focus Timer" \
+          --icon=icon.icns \
           --osx-bundle-identifier="com.focustimer.app" \
           --target-arch arm64 \
           focus_timer.py
@@ -35,6 +61,7 @@ jobs:
         mkdir -p "Focus Timer.app/Contents/Resources"
         cp "dist/Focus Timer" "Focus Timer.app/Contents/MacOS/Focus Timer"
         chmod +x "Focus Timer.app/Contents/MacOS/Focus Timer"
+        cp icon.icns "Focus Timer.app/Contents/Resources/icon.icns"
 
         cat > "Focus Timer.app/Contents/Info.plist" << 'EOF'
         <?xml version="1.0" encoding="UTF-8"?>
@@ -43,6 +70,8 @@ jobs:
         <dict>
             <key>CFBundleExecutable</key>
             <string>Focus Timer</string>
+            <key>CFBundleIconFile</key>
+            <string>icon</string>
             <key>CFBundleIdentifier</key>
             <string>com.focustimer.app</string>
             <key>CFBundleName</key>
@@ -50,9 +79,9 @@ jobs:
             <key>CFBundlePackageType</key>
             <string>APPL</string>
             <key>CFBundleShortVersionString</key>
-            <string>1.0</string>
+            <string>1.0.1</string>
             <key>CFBundleVersion</key>
-            <string>1</string>
+            <string>1.0.1</string>
             <key>LSMinimumSystemVersion</key>
             <string>11.0</string>
             <key>NSHighResolutionCapable</key>
@@ -68,5 +97,5 @@ jobs:
     - name: Upload DMG
       uses: actions/upload-artifact@v4
       with:
-        name: Focus-Timer-M4
+        name: Focus-Timer-M4-v1.0.1
         path: Focus Timer-M4.dmg
